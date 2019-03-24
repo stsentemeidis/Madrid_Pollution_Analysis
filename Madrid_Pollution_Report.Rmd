@@ -1,0 +1,338 @@
+---
+title: "Madrid Pollution Report"
+author: "MBD - O17"
+date: "13/12/2018"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Load Libraries, echo = FALSE, include = FALSE}
+#library(readxl)
+#library(tidyr)
+library(ggplot2)
+library(corrplot)
+library(GGally)
+library(gridExtra)
+library(leaflet)
+library(jtools)
+library(lattice)
+library(car)
+library(caret)
+library(MASS)
+```
+
+``` {r Load Prepared Data, echo = FALSE}
+load('data_output/RMarkdown_Objects.RData')
+```
+
+***
+
+## Madrid Pollution Dataset
+
+This report describes an analysis of the **pollution in Madrid between 2011 and 2016**.
+
+The dataset consists in:
+
+* 72 csv files containing hourly measures of pollutants across 24 stations,
+* 1 xlsx file containing daily weather information.
+
+The stations are located all across the city:
+
+```{r, echo = FALSE, fig.height=8, fig.width=10, fig.align='center'}
+station_icon = makeIcon(iconUrl = 'documents/station_icon.jpg',
+                             iconWidth = 30, iconHeight = 30)
+map <- leaflet(stations) %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addMarkers(lng=~long, lat=~lat,
+             popup=~station_name,
+             icon = station_icon)
+map
+
+```
+
+***
+
+
+## Packages
+
+This analysis requires these R packages:
+
+* Data Cleaning
+    + readxl
+    + tidyr
+    
+* Plotting
+    + ggplot2
+    + corrplot
+    + GGally
+    + gridExtra
+    + leaflet
+    
+* Statistics
+    + jtools
+    + lattice
+    + car
+    + caret
+    + MASS
+
+
+These packages are installed and loaded if necessary by the main script.
+
+***
+
+## Data Preparation
+
+The pollution and weather data are first read from the input files, formatted, combined and aggregated, into the data frame *pollution_daily_h* which provides the averaged information per day.
+
+The dataset contains information for `r length(list_pollutants)` pollutants: **`r paste(list_pollutants, sep = ', ')`**.
+
+The workflow to prepare the data is as below:
+
+![ ](documents/Data Preparation R.png)
+
+Additional variables have been added:
+
+* *month*: the first day of the related month
+* *week*: the first day of the related week
+* *temp_gap*: difference between temp_min and temp_max
+
+The data frame *pollution_daily_h* is structured as below:
+
+```{r Pollution Dataset, echo = TRUE}
+str(pollution_daily_h)
+summary(pollution_daily_h)
+```
+
+The data frame doesn't contain any NA across its 2192 observations and 22 variables.
+
+***
+
+## Variables Evolution Over Time
+
+The charts below describe the evolution of each variable over time.
+
+```{r Plot Variables, echo = FALSE, fig.height=8, fig.width=12, fig.align='center'}
+# Generate plots for pollutants
+plot_pollution <- list()
+increment <- 1
+
+for (i in c(list_pollutants,weather_param)){
+  var_color <- ifelse(i %in% pollutants$pollutant, pollutants[pollutants$pollutant == i, 'color'], 'skyblue')
+  plot_pollution[[increment]] <- ggplot(data=pollution_daily_v[pollution_daily_v$variable == i,],
+                                        aes(x=date,y=value))+
+                                  geom_line(color=var_color)+
+                                  labs(title = i)+
+                                  theme(legend.position="none", axis.title = element_blank(), plot.title = element_text(hjust = 0.5))
+  increment <- increment + 1
+}
+
+# Display plots
+grid.arrange(grobs=plot_pollution, ncol=5, nrow=4)
+```
+
+*Dark Orange = Main Pollutants | Light Orange = Other Pollutants | Blue = Weather Parameters*
+
+We can see a cyclic evolution following the seasons, which suggests that the weather has an influence on the level of some pollutants.
+
+***
+
+## Correlation Matrix
+
+To identify correlations between the variables, we firstly plot a correlation matrix:
+
+``` {r Correlation Matrix, echo = FALSE, fig.height=8, fig.width=12, fig.align='center'}
+corrplot(cor(pollution_daily_h[, names(pollution_daily_h)[sapply(pollution_daily_h,is.numeric)]]),
+         order = 'FPC',
+         type = 'upper',
+         diag = FALSE,
+         tl.srt = 45,
+)
+```
+
+
+Another view provides more information:
+``` {r Simplified Correlation Matrix GGPairs, echo = FALSE, fig.height=8, fig.width=12, fig.align='center'}
+ggpairs(pollution_daily_h[, c('NO2', 'SO2', 'O3', 'PM2.5', weather_param)],
+        lower = list(continuous = wrap('points', alpha = 0.3, size = 0.1)))+
+  theme(panel.grid.major = element_blank())
+
+```
+
+
+***
+
+## NO2 Linear Correlation
+
+First we split the data in train and test (80% - 20%).
+
+```{r Split Train/Test Data, echo = TRUE}
+set.seed(2018)
+train.size <- 0.8
+train.index <- sample.int(length(pollution_daily_h$NO2), round(length(pollution_daily_h$NO2) * train.size))
+train.sample <- pollution_daily_h[train.index,]
+test.sample <- pollution_daily_h[-train.index,]
+```
+The **Train Sample has `r nrow(train.sample)` rows** and the **Test Sample has `r nrow(test.sample)` rows**.
+
+We want to define a *multilinear regression model* in order to explain NO2 with the rest of the variables.
+By definition, temp_min and temp_max are correlated with temp_avg, so we remove them.We use the variable *temp_gap* to measure their influence on the model.
+```{r First Linear Regression Model, echo = TRUE}
+multi_model_NO2<-lm(NO2~.-month-week-date-temp_min-temp_max, data=train.sample)
+lm_stats <- summary(multi_model_NO2)
+print(lm_stats)
+```
+
+* As we can see our **R-square value is `r lm_stats$r.squared`** and the **Adj.R-squared is `r lm_stats$adj.r.squared`**, which means our model is able to explain NO2 well.
+* Particularly, this value means that predictors explain **`r lm_stats$r.squared` of the variability** in NO2.This could possibly be improved if there is one or more predictors that aren’t very good and are hurting our model.
+* One thing to note though is that comparing R-squared values is not a great way of deciding which model is better than the other.
+
+*Mean squared error* is exactly how it sounds: we take the mean of all of our errors squared.
+This is a good measure for seeing how accurate a model is because we obviously want as little error as possible.
+In our case the **MSE is `r lm_stats$sigma`**.
+
+Another thing to look at is the *confidence intervals* for our coefficients.
+Our estimates for each coefficient are not exact so we want to find a range where we are at a certain percent confident that the actual value is in this range .
+We can interpret this like: for every change of one (1) unit in the **SO2**, we are **95% confident** that the **NO2 will change between `r confint(multi_model_NO2, level=.95)[2,c(1,2)]`**.
+
+``` {r Confidence Interval, echo = FALSE, fig.height=8, fig.width=12, fig.align='center'}
+plot_summs(multi_model_NO2, scale = TRUE, plot.distributions = TRUE, inner_ci_level = 0.95)
+```
+
+Another important thing is to investigate is if the *assumptions* regarding linear regression are valid. This can be observed by creating the below 4 plots.
+
+```{r Assign Residuals to Create the Plots, echo = TRUE}
+resids_multi_NO2 <- multi_model_NO2$residuals
+```
+
+``` {r Confidence Intervals, echo = FALSE, fig.height=8, fig.width=12, fig.align='center'}
+par(mfrow=c(2,2))
+plot(resids_multi_NO2, type='o', xlab='',ylab='',xaxt='n',lwd=2,pch=19, main='Multi Model NO2', col='cornflowerblue'); grid()
+hist(resids_multi_NO2, col='cornflowerblue',main='Histogram of Residuals',xlab=' ')
+boxplot(resids_multi_NO2,main='Boxplot', col='cornflowerblue'); grid()
+qqnorm(resids_multi_NO2, col='cornflowerblue', main='QQ plot',xlab=' '); grid()
+```
+
+After this analysis, lets see if making some transformations may be beneficial to our model.
+First, we implement  *stepwise regression* to find out the significance in variables.
+```{r Stepwise Regression Both Ways, echo = FALSE}
+step_0 <- stepAIC(multi_model_NO2,direction = "both")
+```
+
+```{r Stepwise Regression Both Ways Result, echo = FALSE}
+step_0$anova
+```
+
+Based on the above mentioned results, we get the following formula and the variables removed should be PM10 and NMHC. So, we create the model.
+
+```{r Redifining Model based on Stepwise Regression, echo = FALSE}
+multi_model_NO2_0<-lm(NO2~.-month-week-date-temp_min-temp_max-PM10-NMHC, data=train.sample)
+```
+
+```{r Summary of Redifined Model, echo = FALSE}
+lm_stats_0 <- summary(multi_model_NO2_0)
+```
+
+We can still notice a really high R-squared of value `r lm_stats_0$r.squared`.
+After that, we want to treat **multicollinearity** with the **VIF Method** (variance inflation factors).
+
+As a general rule, if VIF is larger than 5, then multi collinearity is assumed to be high. So,by starting with all the variables in the model, we are going to
+ * calculate the VIF values,
+ * remove the biggest one,
+ * re-do the model until all the explanatory variables have a VIF below 5.
+ 
+```{r VIF Values of First Model, echo = FALSE}
+vif(multi_model_NO2_0)
+```
+
+For practicallity we decided to handle the above procedure with a **WHILE loop**.
+
+```{r VIF Process, echo = TRUE}
+ selectedMod <- step_0
+
+ all_vifs <- car::vif(selectedMod)
+ print('VIF Values of our Initial Explanatory Variables:')
+ print(all_vifs)
+
+ signif_all <- names(all_vifs)
+
+ while(any(all_vifs > 5)){
+   var_with_max_vif <- names(which(all_vifs == max(all_vifs)))                       # get the variable with max vif
+   signif_all <- signif_all[!(signif_all) %in% var_with_max_vif]                     # re  move this variable
+   myForm <- as.formula(paste("NO2~ ", paste (signif_all, collapse=" + "), sep=""))  # design the new formula
+   selectedMod <- lm(myForm, data=train.sample)                                     # re-build model with new formula
+   all_vifs <- car::vif(selectedMod)
+ }
+ 
+ print('VIF Values of our Final Explanatory Variables:')
+ print(all_vifs)
+   
+```
+
+So our **Final Model** after removing the multicollinear variables is
+```{r Formulating the Final Model, echo = FALSE}
+multi_model_NO2_final<-lm(NO2~ SO2 + O3 + PM2.5 + EBE + TCH + temp_avg + precipitation + wind_avg_speed + temp_gap, data=train.sample) 
+formula(multi_model_NO2_final)
+summary(multi_model_NO2_final)
+```
+
+Let's see what a **10-Fold Cross validation** will tell us about our model:
+```{r Cross Validation of First and Final Models, echo = FALSE}
+set.seed(2018)
+train_control <- trainControl(method="cv", number=10, verboseIter = FALSE)
+
+model_lm_final <- train(NO2 ~ SO2  + O3 + PM2.5 + EBE + TCH + temp_avg + precipitation + wind_avg_speed + temp_gap, 
+                  data=train.sample, 
+                  trControl=train_control, 
+                  method="lm",
+                  preProcess = c('center','scale'))
+
+model_lm_0 <- train(NO2~.-month-week-date-temp_min-temp_max, 
+                    data=train.sample, 
+                    trControl=train_control, 
+                    method="lm",
+                    preProcess = c('center','scale'))
+```
+
+```{r Cross Validation of First and Final Models - Summary, echo = FALSE}
+print('INITIAL MODEL:')
+print(model_lm_0)
+print('FINAL MODEL:')
+print(model_lm_final)
+```
+
+Let's have a look at the **predictions** for both models
+```{r Predictions for Both Models, echo = TRUE}
+test.sample$NO2_predicted_model_final <- predict(multi_model_NO2_final,test.sample)
+test.sample$NO2_predicted_model_0 <- predict(multi_model_NO2_0,test.sample)
+```
+
+We show randomly rows 80-90 of the results. We can see that in some cases the original model is better, but also the other way around.
+```{r Predictions for Both Models - Table, echo = FALSE}
+test.sample[80:90,c('NO2','NO2_predicted_model_0','NO2_predicted_model_final')] 
+```
+
+Let's **visualize** it:
+```{r Plot Comparison of Both Models - Table, echo = FALSE}
+ggplot(test.sample,aes(x=test.sample$NO2,y=test.sample$NO2_predicted_model_final))+
+  geom_point(size=1, colour='orange')+
+  geom_point(data = test.sample, aes(x=test.sample$NO2, y=test.sample$NO2_predicted_model_0), size=1, colour='cornflowerblue')+
+  geom_abline(intercept = 0, slope = 1)+
+  ggtitle("Predictions on Actual Values") +
+  xlab("Actual Values") + ylab("Predicted Values")
+```
+
+*Blue = Initial Model | Orange = Final Model*
+
+Now lets compare the 2 **models** (initial and final):
+```{r Comparison with Anobva and Plot - Table, echo = FALSE}
+anova(multi_model_NO2_0, multi_model_NO2_final)
+plot_summs(multi_model_NO2_0,multi_model_NO2_final,scale=TRUE) 
+```
+
+Our Final Model provides a way to predict the NO2 pollution level based on 9 pollutants and 5 weather parameters.
+
