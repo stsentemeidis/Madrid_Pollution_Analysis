@@ -1,37 +1,15 @@
-## Welcome to GitHub Pages
+# Madrid Pollution Analysis
 
-You can use the [editor on GitHub](https://github.com/stsentemeidis/Madrid_Pollution_Analysis/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
+The work consists in analyzing a big dataset with *hourly pollution* data from **Madrid**, in the period **2011 to 2016.     
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+So there are four parts in which this project can be divided in (besides from the report):     
 
-### Markdown
+1. **Reading** every piece of raw data and creating the whole initial raw_data set.       
+2. **Processing** raw_data to create a daily dataset, by averaging each hourly measure, and containing also the weather variables and the names for each pollutant parameter.        
+3. Generating a **descriptive analysis** with correlation matrices, scatterplots, time series charts ...     
+4. Creating a **linear regression model** that explains *NO2.     
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
 
-```markdown
-Syntax highlighted code block
+The work is done by the students of Group G, IE MBD '18 intake. and any work copied from this repository should cite the following:      
 
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
-```
-
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
-
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/stsentemeidis/Madrid_Pollution_Analysis/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
-
-### Support or Contact
-
-Having trouble with Pages? Check out our [documentation](https://help.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
+*Copyrights reserved by the members of Group G, Term 1, IE MBD Oct'18 intake
