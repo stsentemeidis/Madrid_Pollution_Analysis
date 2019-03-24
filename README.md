@@ -12,4 +12,4 @@ So there are four parts in which this project can be divided in (besides from th
 
 The work is done by the students of Group G, IE MBD '18 intake. and any work copied from this repository should cite the following:      
 
-*Copyrights reserved by the members of Group G, Term 1, IE MBD Oct'18 intake
+*Copyrights reserved by the members of Group G, Term 1, IE MBD Oct'18 intake*
