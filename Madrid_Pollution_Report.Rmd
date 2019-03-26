@@ -3,8 +3,8 @@ title: "Madrid Pollution Report"
 author: "MBD - O17"
 date: "13/12/2018"
 output:
-  html_document: default
-  pdf_document: default
+  html_document:
+  keep_md: true
 ---
 
 ```{r setup, include=FALSE}
@@ -91,9 +91,13 @@ The pollution and weather data are first read from the input files, formatted, c
 
 The dataset contains information for `r length(list_pollutants)` pollutants: **`r paste(list_pollutants, sep = ', ')`**.
 
-The workflow to prepare the data is as below:
+The workflow to prepare the data is as below
+
+</br>
 
 ![ ](documents/Data Preparation R.png)
+
+</br>
 
 Additional variables have been added:
 
@@ -313,7 +317,7 @@ test.sample$NO2_predicted_model_0 <- predict(multi_model_NO2_0,test.sample)
 
 We show randomly rows 80-90 of the results. We can see that in some cases the original model is better, but also the other way around.
 ```{r Predictions for Both Models - Table, echo = FALSE}
-test.sample[80:90,c('NO2','NO2_predicted_model_0','NO2_predicted_model_final')] 
+test.sample[80:90,c('NO2','NO2_predicted_model_0','NO2_predicted_model_final')]
 ```
 
 Let's **visualize** it:
