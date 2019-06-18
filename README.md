@@ -9,6 +9,7 @@ So there are four parts in which this project can be divided in (besides from th
 3. Generating a **descriptive analysis** with correlation matrices, scatterplots, time series charts ...     
 4. Creating a **linear regression model** that explains *NO2.     
 
+All the files of this project are saved in a [GitHub repository](https://github.com/stsentemeidis/Madrid_Pollution_Analysis).
 
 The work is done by the students of Group G, IE MBD '18 intake. and any work copied from this repository should cite the following:      
 
